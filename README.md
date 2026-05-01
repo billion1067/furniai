@@ -71,3 +71,7 @@ Future AI endpoints can replace the manual controls without changing the rendere
 - `POST /compose/render`: perform high-quality server-side render or image export.
 
 The frontend currently lives in [src/main.tsx](/Users/billionaire/Documents/Furni/src/main.tsx) and styling is in [src/styles.css](/Users/billionaire/Documents/Furni/src/styles.css).
+
+## Preserved Remote Project
+
+The previous GitHub project is preserved in `furni-ai-mvp/`.
