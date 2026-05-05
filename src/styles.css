@@ -1,10 +1,10 @@
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
-  background: #121414;
-  color: #f4f1ea;
+  background: #f3f1ec;
+  color: #202426;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -26,10 +26,10 @@ input {
 }
 
 button {
-  border: 1px solid #3a3d3a;
-  background: #1f2421;
-  color: #f4f1ea;
-  min-height: 40px;
+  border: 1px solid #d4d0c7;
+  background: #ffffff;
+  color: #202426;
+  min-height: 42px;
   border-radius: 7px;
   padding: 0 13px;
   display: inline-flex;
@@ -40,24 +40,31 @@ button {
 }
 
 button:hover {
-  border-color: #728077;
-  background: #29302b;
+  border-color: #8f9d95;
+  background: #f8f7f3;
+}
+
+button:disabled {
+  color: #9b958b;
+  cursor: not-allowed;
+  background: #ebe8df;
+  border-color: #ded9ce;
 }
 
 .app-shell {
   display: grid;
-  grid-template-columns: 380px minmax(0, 1fr);
+  grid-template-columns: 340px minmax(0, 1fr);
   min-height: 100vh;
-  background: #121414;
+  background: #f3f1ec;
 }
 
 .sidebar {
-  border-right: 1px solid #323731;
-  background: #171a18;
-  padding: 18px;
+  border-right: 1px solid #ded9ce;
+  background: #fbfaf7;
+  padding: 18px 16px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   overflow-y: auto;
 }
 
@@ -70,32 +77,33 @@ button:hover {
 
 .brand strong {
   display: block;
-  font-size: 20px;
+  font-size: 19px;
 }
 
 .brand span {
   display: block;
-  color: #b9b6ad;
+  color: #6f6a61;
   font-size: 13px;
   margin-top: 3px;
+  line-height: 1.35;
 }
 
 .upload-zone {
-  min-height: 54px;
-  border: 1px dashed #596158;
+  min-height: 56px;
+  border: 1px dashed #b9b2a5;
   border-radius: 8px;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 0 14px;
-  color: #e7e3d8;
+  color: #2b2f31;
   cursor: pointer;
-  background: #1d211e;
+  background: #ffffff;
 }
 
 .upload-zone:hover {
-  border-color: #9ba891;
-  background: #232921;
+  border-color: #67766d;
+  background: #f7f6f1;
 }
 
 .upload-zone input {
@@ -103,10 +111,10 @@ button:hover {
 }
 
 .panel {
-  border: 1px solid #343934;
+  border: 1px solid #dfdad0;
   border-radius: 8px;
   padding: 14px;
-  background: #1b1f1c;
+  background: #ffffff;
 }
 
 .panel h2 {
@@ -116,104 +124,78 @@ button:hover {
   gap: 8px;
   font-size: 14px;
   font-weight: 700;
-  color: #f3efe4;
+  color: #202426;
 }
 
-.sample-panel p {
-  margin: 11px 0 0;
-  color: #b9b6ad;
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.sample-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.image-to-3d {
+.analysis-panel {
   display: grid;
   gap: 11px;
 }
 
-.inline-upload {
-  min-height: 46px;
-}
-
-.pipeline-placeholder {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.pipeline-placeholder span {
-  min-height: 34px;
-  border: 1px solid #384038;
+.analysis-state {
+  min-height: 38px;
+  border: 1px solid #dfdad0;
+  background: #f8f7f3;
   border-radius: 7px;
+  color: #625d55;
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: #cfcabf;
-  background: #202620;
-  font-size: 12px;
-  text-align: center;
-  padding: 0 6px;
-}
-
-.furniture-preview {
-  display: grid;
-  grid-template-columns: 68px minmax(0, 1fr);
-  gap: 10px;
-  align-items: center;
-  border: 1px solid #384038;
-  border-radius: 8px;
-  background: #202620;
-  padding: 8px;
-}
-
-.furniture-preview img {
-  width: 68px;
-  height: 68px;
-  object-fit: cover;
-  border-radius: 6px;
-  background: #111;
-}
-
-.furniture-preview strong,
-.furniture-preview span {
-  display: block;
-}
-
-.furniture-preview strong {
+  padding: 0 11px;
   font-size: 13px;
-  margin-bottom: 4px;
 }
 
-.furniture-preview span {
-  color: #b9b6ad;
+.analysis-state.complete {
+  color: #284d3a;
+  border-color: #b9d4c0;
+  background: #edf7ef;
+}
+
+.analysis-state.analyzing {
+  color: #59491e;
+  border-color: #dccb94;
+  background: #fbf4d8;
+}
+
+.analysis-message {
+  margin: 0;
+  color: #625d55;
   font-size: 12px;
-  line-height: 1.35;
+  line-height: 1.45;
+}
+
+.depth-link {
+  color: #315f4b;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.depth-link:hover {
+  text-decoration: underline;
+}
+
+.full-width {
+  width: 100%;
 }
 
 .range-row {
   display: grid;
-  grid-template-columns: 76px minmax(0, 1fr) 58px;
+  grid-template-columns: 74px minmax(0, 1fr) 58px;
   align-items: center;
   gap: 10px;
   min-height: 34px;
-  color: #c9c7bd;
+  color: #4c4a45;
   font-size: 13px;
 }
 
 .range-row input {
   width: 100%;
-  accent-color: #6cae75;
+  accent-color: #3f6f5a;
 }
 
 .range-row output {
   text-align: right;
-  color: #f4f1ea;
+  color: #202426;
   font-variant-numeric: tabular-nums;
 }
 
@@ -230,9 +212,23 @@ button:hover {
 
 .segmented .active,
 .primary {
-  background: #5b7f62;
+  background: #315f4b;
   color: #ffffff;
-  border-color: #7ba985;
+  border-color: #315f4b;
+}
+
+.segmented button:disabled,
+.segmented button:disabled.active,
+.primary:disabled {
+  color: #9b958b;
+  background: #ebe8df;
+  border-color: #ded9ce;
+}
+
+.segmented .active:hover,
+.primary:hover {
+  background: #274d3e;
+  border-color: #274d3e;
 }
 
 .switch {
@@ -241,29 +237,14 @@ button:hover {
   display: flex;
   align-items: center;
   gap: 9px;
-  color: #d5d1c7;
+  color: #4f4b44;
   font-size: 13px;
 }
 
 .switch input {
   width: 17px;
   height: 17px;
-  accent-color: #6cae75;
-}
-
-.contract {
-  flex: 1;
-  min-height: 210px;
-}
-
-.contract pre {
-  margin: 0;
-  max-height: 260px;
-  overflow: auto;
-  color: #b7d8bd;
-  font-size: 11px;
-  line-height: 1.45;
-  white-space: pre-wrap;
+  accent-color: #315f4b;
 }
 
 .actions {
@@ -276,8 +257,8 @@ button:hover {
   position: relative;
   overflow: hidden;
   background:
-    linear-gradient(0deg, rgba(10, 11, 10, 0.72), rgba(10, 11, 10, 0.08)),
-    #262a27;
+    linear-gradient(0deg, rgba(21, 22, 21, 0.42), rgba(21, 22, 21, 0.04)),
+    #d9d5cc;
 }
 
 .room-image {
@@ -286,7 +267,7 @@ button:hover {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  background: #0f1110;
+  background: #151615;
 }
 
 .three-mount {
@@ -306,7 +287,7 @@ button:hover {
   align-items: center;
   justify-content: flex-start;
   gap: 10px;
-  color: #d7d1c2;
+  color: #4e4a42;
   text-align: center;
   padding: 42px 24px 24px;
   pointer-events: none;
@@ -318,7 +299,7 @@ button:hover {
 
 .empty-stage span {
   max-width: 460px;
-  color: #aaa79e;
+  color: #767064;
   line-height: 1.55;
 }
 
@@ -328,8 +309,8 @@ button:hover {
   right: 18px;
   bottom: 18px;
   min-height: 42px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(18, 20, 19, 0.76);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(26, 28, 26, 0.76);
   backdrop-filter: blur(10px);
   border-radius: 8px;
   display: flex;
@@ -353,11 +334,7 @@ button:hover {
 
   .sidebar {
     border-right: 0;
-    border-bottom: 1px solid #323731;
+    border-bottom: 1px solid #ded9ce;
     max-height: none;
-  }
-
-  .contract {
-    min-height: 160px;
   }
 }

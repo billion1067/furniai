@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
 import {
   AmbientLight,
-  BoxGeometry,
   BufferGeometry,
   Color,
   DirectionalLight,
@@ -12,7 +11,6 @@ import {
   Line,
   LineBasicMaterial,
   Mesh,
-  MeshStandardMaterial,
   Object3D,
   PCFSoftShadowMap,
   PerspectiveCamera,
@@ -31,10 +29,8 @@ import {
   Download,
   Grid3X3,
   Image,
-  Lightbulb,
   Move3D,
   RotateCcw,
-  Sparkles,
   Upload,
 } from 'lucide-react';
 import './styles.css';
@@ -49,15 +45,22 @@ type CameraCalibration = {
 };
 
 type FurnitureAsset = {
-  id: string;
   name: string;
   object: Object3D;
 };
+
+type AnalysisStatus = 'waiting-image' | 'ready' | 'analyzing' | 'complete';
 
 type ObjectTransform = {
   position: number[];
   rotation: number[];
   scale: number[];
+};
+
+type SceneAnalysisResponse = {
+  calibration?: Partial<CameraCalibration>;
+  depthMapUrl?: string | null;
+  error?: string;
 };
 
 const initialCalibration: CameraCalibration = {
@@ -70,51 +73,6 @@ const initialCalibration: CameraCalibration = {
 };
 
 const rad = (degrees: number) => (degrees * Math.PI) / 180;
-
-function createFurnitureProxy() {
-  const group = new Group();
-  group.name = 'Generated chair proxy';
-
-  const wood = new MeshStandardMaterial({ color: '#a86835', roughness: 0.62, metalness: 0.04 });
-  const fabric = new MeshStandardMaterial({ color: '#2f7868', roughness: 0.78, metalness: 0.02 });
-  const dark = new MeshStandardMaterial({ color: '#222427', roughness: 0.5, metalness: 0.15 });
-
-  const seat = new Mesh(new BoxGeometry(1.15, 0.18, 1.0), fabric);
-  seat.position.y = 0.65;
-  seat.castShadow = true;
-  seat.receiveShadow = true;
-  group.add(seat);
-
-  const back = new Mesh(new BoxGeometry(1.15, 1.1, 0.16), fabric);
-  back.position.set(0, 1.14, -0.43);
-  back.rotation.x = rad(-8);
-  back.castShadow = true;
-  back.receiveShadow = true;
-  group.add(back);
-
-  const rail = new Mesh(new BoxGeometry(1.28, 0.08, 0.12), wood);
-  rail.position.set(0, 1.74, -0.5);
-  rail.castShadow = true;
-  group.add(rail);
-
-  const legPositions = [
-    [-0.48, 0.31, -0.36],
-    [0.48, 0.31, -0.36],
-    [-0.48, 0.31, 0.36],
-    [0.48, 0.31, 0.36],
-  ];
-  legPositions.forEach(([x, y, z]) => {
-    const leg = new Mesh(new BoxGeometry(0.12, 0.62, 0.12), dark);
-    leg.position.set(x, y, z);
-    leg.castShadow = true;
-    leg.receiveShadow = true;
-    group.add(leg);
-  });
-
-  group.position.set(0, 0, -1.4);
-  group.scale.setScalar(0.9);
-  return group;
-}
 
 function makePerspectiveLines(depth = 7, width = 6) {
   const group = new Group();
@@ -142,8 +100,10 @@ function makePerspectiveLines(depth = 7, width = 6) {
 
 function useObjectUrl(initialUrl: string | null = null) {
   const [url, setUrl] = useState<string | null>(initialUrl);
+  const [file, setFile] = useState<File | null>(null);
 
   const update = (file: File | null) => {
+    setFile(file);
     setUrl((current) => {
       if (current?.startsWith('blob:')) URL.revokeObjectURL(current);
       return file ? URL.createObjectURL(file) : null;
@@ -151,6 +111,7 @@ function useObjectUrl(initialUrl: string | null = null) {
   };
 
   const useStatic = (nextUrl: string) => {
+    setFile(null);
     setUrl((current) => {
       if (current?.startsWith('blob:')) URL.revokeObjectURL(current);
       return nextUrl;
@@ -161,29 +122,39 @@ function useObjectUrl(initialUrl: string | null = null) {
     if (url?.startsWith('blob:')) URL.revokeObjectURL(url);
   }, [url]);
 
-  return [url, update, useStatic] as const;
+  return [url, file, update, useStatic] as const;
+}
+
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') resolve(reader.result);
+      else reject(new Error('이미지 파일을 읽을 수 없습니다.'));
+    };
+    reader.onerror = () => reject(new Error('이미지 파일을 읽을 수 없습니다.'));
+    reader.readAsDataURL(file);
+  });
 }
 
 function FurniStudio() {
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const backgroundImageRef = useRef<HTMLImageElement | null>(null);
   const rendererRef = useRef<WebGLRenderer | null>(null);
   const sceneRef = useRef<Scene | null>(null);
   const cameraRef = useRef<PerspectiveCamera | null>(null);
   const furnitureRef = useRef<Object3D | null>(null);
   const transformRef = useRef<TransformControls | null>(null);
-  const [backgroundUrl, setBackgroundFile, setSampleBackground] = useObjectUrl('/sample-room.svg');
-  const [furnitureImagePreview, setFurnitureImagePreview] = useObjectUrl(null);
-  const [assetName, setAssetName] = useState('Sample generated chair');
-  const [assetSource, setAssetSource] = useState<'sample' | 'glb' | 'image-pending'>('sample');
+  const [backgroundUrl, backgroundFile, setBackgroundFile] = useObjectUrl(null);
+  const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus>('waiting-image');
+  const [analysisMessage, setAnalysisMessage] = useState('');
+  const [depthMapUrl, setDepthMapUrl] = useState<string | null>(null);
+  const [assetName, setAssetName] = useState('3D 가구 파일을 업로드하세요');
   const [mode, setMode] = useState<'translate' | 'rotate' | 'scale'>('translate');
   const [showGrid, setShowGrid] = useState(true);
   const [calibration, setCalibration] = useState(initialCalibration);
   const [isRendering, setIsRendering] = useState(false);
-  const [assetTransform, setAssetTransform] = useState<ObjectTransform | null>({
-    position: [0, 0, -1.4],
-    rotation: [0, 0, 0],
-    scale: [0.9, 0.9, 0.9],
-  });
+  const [assetTransform, setAssetTransform] = useState<ObjectTransform | null>(null);
 
   const syncAssetTransform = (object = furnitureRef.current) => {
     if (!object) return;
@@ -194,28 +165,13 @@ function FurniStudio() {
     });
   };
 
-  const sceneContract = useMemo(
-    () => ({
-      cameraMatrix: {
-        fov: calibration.fov,
-        pitch: calibration.pitch,
-        yaw: calibration.yaw,
-        roll: calibration.roll,
-        cameraHeightMeters: calibration.cameraHeight,
-      },
-      roomBox: {
-        floorDepthMeters: calibration.floorDepth,
-        coordinateSystem: 'threejs-y-up-z-depth',
-      },
-      asset: {
-        name: assetName,
-        source: assetSource,
-        imageTo3DStatus: assetSource === 'image-pending' ? 'queued-ui-only' : 'not-requested',
-        transform: assetTransform,
-      },
-    }),
-    [assetName, assetSource, assetTransform, calibration],
-  );
+  const canPlaceFurniture = Boolean(backgroundUrl && analysisStatus === 'complete' && assetTransform);
+  const analysisLabel = useMemo(() => {
+    if (!backgroundUrl) return '인테리어 이미지를 업로드하세요';
+    if (analysisStatus === 'ready') return '이미지 분석을 실행하세요';
+    if (analysisStatus === 'analyzing') return '시점과 깊이를 분석하는 중';
+    return depthMapUrl ? '분석 완료 · depth map 수신' : '분석 완료';
+  }, [analysisStatus, backgroundUrl, depthMapUrl]);
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -262,24 +218,18 @@ function FurniStudio() {
     perspectiveLines.name = 'Perspective guide';
     scene.add(perspectiveLines);
 
-    const furniture = createFurnitureProxy();
-    furnitureRef.current = furniture;
-    scene.add(furniture);
-
     const orbit = new OrbitControls(camera, renderer.domElement);
     orbit.enableDamping = true;
     orbit.target.set(0, 0.75, -1.8);
 
     const transform = new TransformControls(camera, renderer.domElement);
     transform.setMode(mode);
-    transform.attach(furniture);
     transform.addEventListener('dragging-changed', (event) => {
       orbit.enabled = !event.value;
     });
     transform.addEventListener('objectChange', () => syncAssetTransform());
     transformRef.current = transform;
     scene.add(transform.getHelper());
-    syncAssetTransform(furniture);
 
     let frame = 0;
     const resize = () => {
@@ -324,10 +274,51 @@ function FurniStudio() {
   useEffect(() => {
     sceneRef.current?.traverse((object) => {
       if (object.name === 'Metric floor grid' || object.name === 'Perspective guide') {
-        object.visible = showGrid;
+        object.visible = showGrid && analysisStatus === 'complete';
       }
     });
-  }, [showGrid]);
+  }, [analysisStatus, showGrid]);
+
+  useEffect(() => {
+    setAnalysisStatus(backgroundUrl ? 'ready' : 'waiting-image');
+    setAnalysisMessage('');
+    setDepthMapUrl(null);
+  }, [backgroundUrl]);
+
+  const analyzeRoomImage = async () => {
+    if (!backgroundFile) {
+      setAnalysisMessage('먼저 인테리어 이미지 파일을 업로드하세요.');
+      return;
+    }
+    setAnalysisStatus('analyzing');
+    setAnalysisMessage('');
+
+    try {
+      const image = await fileToDataUrl(backgroundFile);
+      const response = await fetch('/api/scene-analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image }),
+      });
+      const result = (await response.json()) as SceneAnalysisResponse;
+
+      if (!response.ok) {
+        throw new Error(result.error ?? 'Replicate 분석에 실패했습니다.');
+      }
+
+      setCalibration({
+        ...initialCalibration,
+        ...result.calibration,
+      });
+      setDepthMapUrl(result.depthMapUrl ?? null);
+      setShowGrid(true);
+      setAnalysisStatus('complete');
+      setAnalysisMessage(result.depthMapUrl ? 'Replicate가 깊이 이미지를 생성했습니다.' : 'Replicate 분석이 완료됐습니다.');
+    } catch (error) {
+      setAnalysisStatus('ready');
+      setAnalysisMessage(error instanceof Error ? error.message : 'Replicate 분석에 실패했습니다.');
+    }
+  };
 
   const loadGlb = async (file: File) => {
     const url = URL.createObjectURL(file);
@@ -336,7 +327,6 @@ function FurniStudio() {
     try {
       const gltf = await loader.loadAsync(url);
       const asset: FurnitureAsset = {
-        id: crypto.randomUUID(),
         name: file.name,
         object: gltf.scene,
       };
@@ -360,32 +350,10 @@ function FurniStudio() {
       transformRef.current?.attach(asset.object);
       syncAssetTransform(asset.object);
       setAssetName(asset.name);
-      setAssetSource('glb');
     } finally {
       URL.revokeObjectURL(url);
       setIsRendering(false);
     }
-  };
-
-  const useSampleChair = () => {
-    const chair = createFurnitureProxy();
-    if (furnitureRef.current) {
-      transformRef.current?.detach();
-      sceneRef.current?.remove(furnitureRef.current);
-    }
-    furnitureRef.current = chair;
-    sceneRef.current?.add(chair);
-    transformRef.current?.attach(chair);
-    syncAssetTransform(chair);
-    setAssetName('Sample generated chair');
-    setAssetSource('sample');
-  };
-
-  const handleFurnitureImage = (file: File | null) => {
-    setFurnitureImagePreview(file);
-    if (!file) return;
-    setAssetName(`${file.name} · Image-to-3D pending`);
-    setAssetSource('image-pending');
   };
 
   const resetScene = () => {
@@ -393,14 +361,35 @@ function FurniStudio() {
     if (furnitureRef.current) {
       furnitureRef.current.position.set(0, 0, -1.4);
       furnitureRef.current.rotation.set(0, 0, 0);
-      furnitureRef.current.scale.setScalar(0.9);
+      furnitureRef.current.scale.setScalar(1);
       syncAssetTransform();
     }
   };
 
   const exportComposite = () => {
-    const data = rendererRef.current?.domElement.toDataURL('image/png');
-    if (!data) return;
+    const rendererCanvas = rendererRef.current?.domElement;
+    const roomImage = backgroundImageRef.current;
+    if (!rendererCanvas || !roomImage) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = rendererCanvas.width;
+    canvas.height = rendererCanvas.height;
+    const context = canvas.getContext('2d');
+    if (!context) return;
+
+    const imageRatio = roomImage.naturalWidth / roomImage.naturalHeight;
+    const canvasRatio = canvas.width / canvas.height;
+    const drawWidth = imageRatio > canvasRatio ? canvas.width : canvas.height * imageRatio;
+    const drawHeight = imageRatio > canvasRatio ? canvas.width / imageRatio : canvas.height;
+    const drawX = (canvas.width - drawWidth) / 2;
+    const drawY = (canvas.height - drawHeight) / 2;
+
+    context.fillStyle = '#0f1110';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(roomImage, drawX, drawY, drawWidth, drawHeight);
+    context.drawImage(rendererCanvas, 0, 0, canvas.width, canvas.height);
+
+    const data = canvas.toDataURL('image/png');
     const anchor = document.createElement('a');
     anchor.href = data;
     anchor.download = 'furniai-composite.png';
@@ -413,23 +402,14 @@ function FurniStudio() {
         <div className="brand">
           <Box size={25} />
           <div>
-            <strong>FurniAI</strong>
-            <span>Image-to-3D ready UI</span>
+            <strong>FurniAI Studio</strong>
+            <span>Interior image + 3D furniture placement</span>
           </div>
         </div>
 
-        <section className="panel sample-panel">
-          <h2><Sparkles size={17} /> 샘플 체험</h2>
-          <div className="sample-actions">
-            <button onClick={() => setSampleBackground('/sample-room.svg')}>샘플 공간</button>
-            <button onClick={useSampleChair}>샘플 의자 3D</button>
-          </div>
-          <p>공간 사진과 예시 의자가 기본으로 준비되어 있어 바로 드래그 배치를 테스트할 수 있습니다.</p>
-        </section>
-
         <label className="upload-zone">
           <Image size={19} />
-          <span>공간 사진 업로드</span>
+          <span>1. 인테리어 이미지 업로드</span>
           <input
             type="file"
             accept="image/png,image/jpeg,image/webp"
@@ -437,37 +417,26 @@ function FurniStudio() {
           />
         </label>
 
-        <section className="panel image-to-3d">
-          <h2><Sparkles size={17} /> 가구 이미지 → 3D</h2>
-          <label className="upload-zone inline-upload">
-            <Upload size={18} />
-            <span>가구 이미지 선택</span>
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={(event) => handleFurnitureImage(event.target.files?.[0] ?? null)}
-            />
-          </label>
-          {furnitureImagePreview ? (
-            <div className="furniture-preview">
-              <img src={furnitureImagePreview} alt="Furniture image preview" />
-              <div>
-                <strong>변환 대기</strong>
-                <span>현재는 UI만 제공하며, 실제 3D 변환은 다음 단계에서 백엔드 파이프라인에 연결합니다.</span>
-              </div>
-            </div>
-          ) : (
-            <div className="pipeline-placeholder">
-              <span>1. 이미지 업로드</span>
-              <span>2. 객체 분리</span>
-              <span>3. GLB 생성</span>
-            </div>
-          )}
+        <section className="panel analysis-panel">
+          <h2><Camera size={17} /> 2. 시점과 깊이 분석</h2>
+          <div className={`analysis-state ${analysisStatus}`}>
+            <span>{analysisLabel}</span>
+          </div>
+          <button className="primary full-width" disabled={!backgroundUrl || analysisStatus === 'analyzing'} onClick={analyzeRoomImage}>
+            <Camera size={17} />
+            Analyze image
+          </button>
+          {analysisMessage ? <p className="analysis-message">{analysisMessage}</p> : null}
+          {depthMapUrl ? (
+            <a className="depth-link" href={depthMapUrl} target="_blank" rel="noreferrer">
+              Depth map 보기
+            </a>
+          ) : null}
         </section>
 
         <label className="upload-zone">
           <Upload size={19} />
-          <span>외부 생성 GLB 업로드</span>
+          <span>3. 3D 가구 파일 업로드</span>
           <input type="file" accept=".glb,.gltf,model/gltf-binary" onChange={(event) => {
             const file = event.target.files?.[0];
             if (file) void loadGlb(file);
@@ -475,7 +444,7 @@ function FurniStudio() {
         </label>
 
         <section className="panel">
-          <h2><Camera size={17} /> 카메라 매칭</h2>
+          <h2><Camera size={17} /> 분석값 보정</h2>
           <Range label="FOV" value={calibration.fov} min={28} max={88} suffix="deg" onChange={(fov) => setCalibration({ ...calibration, fov })} />
           <Range label="Pitch" value={calibration.pitch} min={-45} max={18} suffix="deg" onChange={(pitch) => setCalibration({ ...calibration, pitch })} />
           <Range label="Yaw" value={calibration.yaw} min={-30} max={30} suffix="deg" onChange={(yaw) => setCalibration({ ...calibration, yaw })} />
@@ -484,44 +453,39 @@ function FurniStudio() {
         </section>
 
         <section className="panel">
-          <h2><Move3D size={17} /> 가구 조작</h2>
+          <h2><Move3D size={17} /> 4. 자유 배치</h2>
           <div className="segmented">
-            <button className={mode === 'translate' ? 'active' : ''} onClick={() => setMode('translate')}>Move</button>
-            <button className={mode === 'rotate' ? 'active' : ''} onClick={() => setMode('rotate')}>Rotate</button>
-            <button className={mode === 'scale' ? 'active' : ''} onClick={() => setMode('scale')}>Scale</button>
+            <button disabled={!assetTransform} className={mode === 'translate' ? 'active' : ''} onClick={() => setMode('translate')}>Move</button>
+            <button disabled={!assetTransform} className={mode === 'rotate' ? 'active' : ''} onClick={() => setMode('rotate')}>Rotate</button>
+            <button disabled={!assetTransform} className={mode === 'scale' ? 'active' : ''} onClick={() => setMode('scale')}>Scale</button>
           </div>
           <label className="switch">
             <input type="checkbox" checked={showGrid} onChange={(event) => setShowGrid(event.target.checked)} />
             <Grid3X3 size={16} />
-            <span>투시 그리드 표시</span>
+            <span>깊이 가이드 표시</span>
           </label>
-        </section>
-
-        <section className="panel contract">
-          <h2><Lightbulb size={17} /> 엔진 출력</h2>
-          <pre>{JSON.stringify(sceneContract, null, 2)}</pre>
         </section>
 
         <div className="actions">
           <button onClick={resetScene}><RotateCcw size={17} /> Reset</button>
-          <button className="primary" onClick={exportComposite}><Download size={17} /> Export</button>
+          <button className="primary" disabled={!canPlaceFurniture} onClick={exportComposite}><Download size={17} /> Export</button>
         </div>
       </aside>
 
       <section className="stage">
         {backgroundUrl ? (
-          <img className="room-image" src={backgroundUrl} alt="Room background" />
+          <img ref={backgroundImageRef} className="room-image" src={backgroundUrl} alt="Room background" />
         ) : (
           <div className="empty-stage">
             <Image size={46} />
-            <strong>공간 이미지를 업로드하세요</strong>
-            <span>사진 위에 Three.js 카메라, 그리드, 그림자, GLB 에셋이 합성됩니다.</span>
+            <strong>인테리어 이미지를 업로드하세요</strong>
+            <span>AI 분석 후 3D 가구 모델을 올려 시점과 깊이에 맞게 배치합니다.</span>
           </div>
         )}
         <div ref={mountRef} className="three-mount" />
         <div className="status-strip">
           <span>{assetName}</span>
-          <span>{isRendering ? 'Loading model' : 'Depth buffer + shadow enabled'}</span>
+          <span>{isRendering ? 'Loading model' : analysisLabel}</span>
         </div>
       </section>
     </main>
