@@ -1,0 +1,2044 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Furni AI Space Analysis MVP</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        background: #08090c;
+        color: #f4f7fb;
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 1120px;
+        min-height: 100vh;
+        overflow: hidden;
+        background: #08090c;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      button {
+        border: 0;
+      }
+
+      .app {
+        display: grid;
+        grid-template-columns: 248px minmax(520px, 1fr) 318px;
+        height: 100vh;
+        background: #08090c;
+      }
+
+      .sidebar,
+      .inspector {
+        min-height: 0;
+        background: #121418;
+        border-color: #2a2f38;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .sidebar {
+        border-right: 1px solid #2a2f38;
+      }
+
+      .inspector {
+        border-left: 1px solid #2a2f38;
+      }
+
+      .brand,
+      .panel-header {
+        min-height: 52px;
+        border-bottom: 1px solid #2a2f38;
+        display: flex;
+        align-items: center;
+        padding: 0 14px;
+      }
+
+      .brand strong,
+      .panel-header strong {
+        font-size: 13px;
+        line-height: 1.2;
+      }
+
+      .upload-block {
+        padding: 12px;
+        border-bottom: 1px solid #2a2f38;
+      }
+
+      .file-input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .primary-button,
+      .secondary-button,
+      .tool-button {
+        min-height: 34px;
+        border-radius: 6px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-size: 12px;
+        font-weight: 720;
+        white-space: nowrap;
+      }
+
+      .primary-button {
+        width: 100%;
+        background: #7aa2ff;
+        color: #07111f;
+      }
+
+      .primary-button:hover {
+        background: #93b4ff;
+      }
+
+      .primary-button:disabled {
+        background: #2d3440;
+        color: #7e8794;
+        cursor: not-allowed;
+      }
+
+      .tool-button:disabled {
+        color: #6f7b8c;
+        border-color: #252b34;
+        background: #151920;
+        cursor: not-allowed;
+      }
+
+      .secondary-button,
+      .tool-button {
+        background: #1a1d23;
+        color: #d9e2f1;
+        border: 1px solid #313845;
+      }
+
+      .secondary-button:hover,
+      .tool-button:hover,
+      .tool-button.active {
+        border-color: #7aa2ff;
+        background: #1d2940;
+      }
+
+      .tool-button.label-active {
+        border-color: #53d6ff;
+        background: #123044;
+        color: #e8f7ff;
+      }
+
+      .image-list {
+        min-height: 0;
+        overflow-y: auto;
+        padding: 10px;
+        display: grid;
+        gap: 9px;
+      }
+
+      .image-card {
+        width: 100%;
+        min-height: 76px;
+        border-radius: 7px;
+        border: 1px solid #2c3340;
+        background: #171a20;
+        color: #f4f7fb;
+        display: grid;
+        grid-template-columns: 62px minmax(0, 1fr);
+        gap: 9px;
+        padding: 7px;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .image-card.selected {
+        border-color: #7aa2ff;
+        background: #17233a;
+      }
+
+      .thumb {
+        width: 62px;
+        height: 62px;
+        border-radius: 5px;
+        object-fit: cover;
+        background: #0d0f13;
+      }
+
+      .card-meta {
+        min-width: 0;
+        display: grid;
+        align-content: space-between;
+      }
+
+      .file-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 11px;
+        font-weight: 720;
+      }
+
+      .status-chip {
+        width: max-content;
+        min-height: 20px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        padding: 0 8px;
+        font-size: 10px;
+        font-weight: 780;
+        border: 1px solid transparent;
+      }
+
+      .status-not {
+        color: #b4bfcc;
+        border-color: #3a424e;
+        background: #1a1e25;
+      }
+
+      .status-analyzing {
+        color: #9cc0ff;
+        border-color: #2e528f;
+        background: #13233e;
+      }
+
+      .status-completed {
+        color: #8bf2c1;
+        border-color: #24784e;
+        background: #10261c;
+      }
+
+      .status-edited {
+        color: #ffc66d;
+        border-color: #8a5e1a;
+        background: #2b1f0d;
+      }
+
+      .status-finalized {
+        color: #d5f8ff;
+        border-color: #2b8fb0;
+        background: #0d2a35;
+      }
+
+      .status-failed {
+        color: #ffadad;
+        border-color: #8b3030;
+        background: #2a1113;
+      }
+
+      .empty-list {
+        min-height: 170px;
+        border: 1px dashed #353d49;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        color: #8d98a8;
+        padding: 18px;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .workspace {
+        min-width: 0;
+        min-height: 0;
+        display: grid;
+        grid-template-rows: 52px minmax(0, 1fr) 44px;
+        background:
+          linear-gradient(#111722 1px, transparent 1px),
+          linear-gradient(90deg, #111722 1px, transparent 1px),
+          #090b0f;
+        background-size: 24px 24px;
+      }
+
+      .topbar {
+        border-bottom: 1px solid #2a2f38;
+        background: rgba(13, 15, 20, 0.94);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 16px;
+      }
+
+      .topbar-title {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .topbar-title strong {
+        font-size: 13px;
+      }
+
+      .topbar-title span {
+        color: #8995a5;
+        font-size: 11px;
+      }
+
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .icon-button {
+        width: 30px;
+        height: 30px;
+        border-radius: 6px;
+        background: #191d24;
+        border: 1px solid #2d3440;
+        color: #dce6f5;
+        cursor: pointer;
+      }
+
+      .icon-button:hover {
+        border-color: #7aa2ff;
+      }
+
+      .canvas-stage {
+        min-height: 0;
+        display: grid;
+        place-items: center;
+        padding: 30px;
+      }
+
+      .canvas-wrap {
+        position: relative;
+        width: min(100%, 900px);
+        aspect-ratio: 16 / 10;
+        border: 1px solid #313845;
+        border-radius: 8px;
+        background: #101319;
+        overflow: hidden;
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+      }
+
+      .canvas-wrap.empty {
+        display: grid;
+        place-items: center;
+        text-align: center;
+        padding: 32px;
+        color: #8995a5;
+      }
+
+      .canvas-wrap img,
+      .overlay-canvas,
+      .edit-canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .main-image {
+        object-fit: fill;
+        background: #0b0d12;
+      }
+
+      .overlay-canvas,
+      .edit-canvas {
+        pointer-events: none;
+      }
+
+      .edit-canvas.painting {
+        pointer-events: auto;
+        cursor: crosshair;
+      }
+
+      .legend {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        display: grid;
+        gap: 6px;
+        padding: 9px;
+        border-radius: 7px;
+        background: rgba(9, 11, 15, 0.78);
+        border: 1px solid rgba(122, 162, 255, 0.22);
+        backdrop-filter: blur(10px);
+      }
+
+      .legend-row {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        color: #d9e2f1;
+        font-size: 10px;
+        font-weight: 720;
+      }
+
+      .swatch {
+        width: 9px;
+        height: 9px;
+        border-radius: 2px;
+      }
+
+      .swatch.depth {
+        background: linear-gradient(135deg, #203dff, #ff7a66);
+      }
+
+      .swatch.segment {
+        background: #dce6f5;
+      }
+
+      .swatch.floor {
+        background: #25b9ff;
+      }
+
+      .swatch.wall {
+        background: #b176ff;
+      }
+
+      .bottom-status {
+        border-top: 1px solid #2a2f38;
+        background: rgba(13, 15, 20, 0.94);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 16px;
+        color: #8995a5;
+        font-size: 11px;
+      }
+
+      .inspector-body {
+        min-height: 0;
+        overflow-y: auto;
+        padding: 12px;
+        display: grid;
+        align-content: start;
+        gap: 14px;
+      }
+
+      .section {
+        display: grid;
+        gap: 8px;
+      }
+
+      .section-title {
+        color: #8f9bad;
+        font-size: 10px;
+        font-weight: 850;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .toggle-row {
+        min-height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        color: #dce6f5;
+        font-size: 12px;
+      }
+
+      .toggle-row.master-toggle {
+        min-height: 34px;
+        padding: 6px 8px;
+        border: 1px solid #303947;
+        border-radius: 7px;
+        background: #171c24;
+      }
+
+      .toggle-copy {
+        display: grid;
+        gap: 2px;
+      }
+
+      .toggle-copy small {
+        color: #8f9bad;
+        font-size: 10px;
+        line-height: 1.25;
+      }
+
+      .child-layer-group {
+        display: grid;
+        gap: 6px;
+        margin-left: 10px;
+        padding-left: 10px;
+        border-left: 1px solid #343d4b;
+      }
+
+      .child-layer-group .toggle-row {
+        min-height: 26px;
+        color: #c8d3e3;
+      }
+
+      .child-layer-group.is-disabled {
+        border-left-color: #252b34;
+        opacity: 0.45;
+      }
+
+      .child-layer-group.is-disabled .toggle-row {
+        color: #6f7b8c;
+        cursor: not-allowed;
+      }
+
+      .child-layer-group.is-disabled .slider {
+        cursor: not-allowed;
+        background: #2b313b;
+      }
+
+      .switch {
+        position: relative;
+        width: 34px;
+        height: 18px;
+        flex: 0 0 auto;
+      }
+
+      .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .slider {
+        position: absolute;
+        inset: 0;
+        border-radius: 999px;
+        background: #343b47;
+        cursor: pointer;
+      }
+
+      .slider::before {
+        content: "";
+        position: absolute;
+        width: 14px;
+        height: 14px;
+        left: 2px;
+        top: 2px;
+        border-radius: 50%;
+        background: #dce6f5;
+        transition: transform 0.15s ease;
+      }
+
+      .switch input:checked + .slider {
+        background: #4d83f2;
+      }
+
+      .switch input:checked + .slider::before {
+        transform: translateX(16px);
+      }
+
+      .tool-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .control-row {
+        display: grid;
+        grid-template-columns: 96px minmax(0, 1fr) 42px;
+        align-items: center;
+        gap: 8px;
+        color: #c8d3e3;
+        font-size: 11px;
+      }
+
+      input[type="range"] {
+        width: 100%;
+        accent-color: #7aa2ff;
+      }
+
+      .save-row {
+        margin-top: 4px;
+        padding-top: 12px;
+        border-top: 1px solid #2a2f38;
+      }
+
+      .note {
+        min-height: 44px;
+        border-radius: 7px;
+        border: 1px solid #2b3442;
+        background: #151a22;
+        color: #a9b5c7;
+        padding: 10px;
+        font-size: 11px;
+        line-height: 1.45;
+      }
+
+      .flow-steps {
+        display: grid;
+        gap: 6px;
+      }
+
+      .flow-step {
+        min-height: 28px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #7f8b9d;
+        font-size: 11px;
+      }
+
+      .flow-step::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #323b49;
+      }
+
+      .flow-step.done {
+        color: #8bf2c1;
+      }
+
+      .flow-step.done::before {
+        background: #28d08b;
+      }
+
+      .flow-step.active {
+        color: #dce8ff;
+        font-weight: 780;
+      }
+
+      .flow-step.active::before {
+        background: #7aa2ff;
+        box-shadow: 0 0 0 4px rgba(122, 162, 255, 0.18);
+      }
+
+      .analysis-status {
+        display: grid;
+        gap: 8px;
+        border: 1px solid #2b3442;
+        background: #151a22;
+        border-radius: 7px;
+        padding: 10px;
+      }
+
+      .analysis-status-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        color: #c8d3e3;
+        font-size: 11px;
+      }
+
+      .analysis-status-row span:first-child {
+        color: #8f9bad;
+        font-weight: 780;
+      }
+
+      .analysis-status-row strong {
+        color: #eef5ff;
+        font-size: 11px;
+        text-align: right;
+      }
+
+      .analysis-progress {
+        height: 5px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #252c36;
+      }
+
+      .analysis-progress-bar {
+        height: 100%;
+        width: var(--progress, 0%);
+        border-radius: inherit;
+        background: #7aa2ff;
+        transition: width 0.25s ease;
+      }
+
+      .analysis-status.is-analyzing .analysis-progress-bar {
+        background: linear-gradient(90deg, #7aa2ff, #53d6ff);
+      }
+
+      .analysis-status.is-failed .analysis-progress-bar {
+        background: #ff7b7b;
+      }
+
+      .analysis-status.is-completed .analysis-progress-bar,
+      .analysis-status.is-finalized .analysis-progress-bar {
+        background: #28d08b;
+      }
+
+      .spatial-summary {
+        display: grid;
+        gap: 8px;
+      }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .summary-card {
+        min-height: 58px;
+        border-radius: 7px;
+        border: 1px solid #2b3442;
+        background: #151a22;
+        padding: 9px;
+      }
+
+      .summary-card span {
+        display: block;
+        color: #8f9bad;
+        font-size: 10px;
+        font-weight: 780;
+        margin-bottom: 5px;
+      }
+
+      .summary-card strong {
+        color: #eef5ff;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      if (window.location.protocol === "file:") {
+        window.location.replace("http://localhost:8791/");
+      }
+    </script>
+    <main class="app">
+      <aside class="sidebar">
+        <div class="brand"><strong>Furni AI Space Analysis</strong></div>
+        <div class="upload-block">
+          <input id="fileInput" class="file-input" type="file" accept="image/*" multiple />
+          <button id="uploadButton" class="primary-button" type="button">Upload Images</button>
+        </div>
+        <div id="imageList" class="image-list">
+          <div class="empty-list">Upload interior images to inspect AI spatial understanding.</div>
+        </div>
+      </aside>
+
+      <section class="workspace">
+        <header class="topbar">
+          <div class="topbar-title">
+            <strong id="activeTitle">No image selected</strong>
+            <span id="activeMeta">SAM2 + Depth Anything v3 Metric via Replicate</span>
+          </div>
+          <div class="toolbar">
+            <button class="icon-button" id="panButton" title="Pan" type="button">↕</button>
+            <button class="icon-button" id="zoomOutButton" title="Zoom out" type="button">−</button>
+            <button class="icon-button" id="zoomInButton" title="Zoom in" type="button">+</button>
+            <button class="icon-button" id="fitButton" title="Fit view" type="button">⤢</button>
+          </div>
+        </header>
+
+        <div class="canvas-stage">
+          <div id="canvasWrap" class="canvas-wrap empty">
+            <div>Upload and select an interior image.</div>
+          </div>
+        </div>
+
+        <footer class="bottom-status">
+          <span id="statusText">Ready</span>
+          <span id="zoomText">100%</span>
+        </footer>
+      </section>
+
+      <aside class="inspector">
+        <div class="panel-header"><strong>Analysis Panel</strong></div>
+        <div class="inspector-body">
+          <div class="section">
+            <div class="section-title">Workflow</div>
+            <div class="flow-steps">
+              <div id="stepUpload" class="flow-step active">Upload image</div>
+              <div id="stepAnalyze" class="flow-step">Analyze space</div>
+              <div id="stepCorrect" class="flow-step">Review and correct floor mask</div>
+              <div id="stepBuild" class="flow-step">Build placement space</div>
+              <div id="stepAnchor" class="flow-step">Use detected floor as free placement area</div>
+            </div>
+          </div>
+
+          <button id="analyzeButton" class="primary-button" type="button" disabled>Analyze Space</button>
+
+          <div id="analysisStatusPanel" class="analysis-status">
+            <div class="analysis-status-row"><span>Status</span><strong>No image selected</strong></div>
+            <div class="analysis-progress"><div class="analysis-progress-bar"></div></div>
+            <div class="analysis-status-row"><span>Elapsed</span><strong>-</strong></div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Layer Visibility</div>
+            <label class="toggle-row">Original Image <span class="switch"><input data-layer="original" type="checkbox" checked /><span class="slider"></span></span></label>
+            <label class="toggle-row">Depth Overlay <span class="switch"><input data-layer="depth" type="checkbox" checked /><span class="slider"></span></span></label>
+            <label class="toggle-row">Segmentation Overlay <span class="switch"><input data-layer="segmentation" type="checkbox" checked /><span class="slider"></span></span></label>
+            <label class="toggle-row master-toggle">
+              <span class="toggle-copy">Mask Layer <small>Master visibility for floor + wall masks</small></span>
+              <span class="switch"><input data-layer="mask" type="checkbox" checked /><span class="slider"></span></span>
+            </label>
+            <div id="maskChildLayers" class="child-layer-group" aria-label="Mask Layer child layers">
+              <label class="toggle-row">Floor Mask <span class="switch"><input data-layer="floor" type="checkbox" checked /><span class="slider"></span></span></label>
+              <label class="toggle-row">Wall Mask <span class="switch"><input data-layer="wall" type="checkbox" checked /><span class="slider"></span></span></label>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Manual Correction</div>
+            <div class="tool-grid">
+              <button class="tool-button active" data-tool="select" type="button">Select Region</button>
+              <button class="tool-button" data-tool="paint" type="button">Paint Mask</button>
+              <button class="tool-button" data-tool="erase" type="button">Erase Mask</button>
+              <button class="tool-button label-active" data-label="floor" type="button">Set as Floor</button>
+              <button class="tool-button" data-label="wall" type="button">Set as Wall</button>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Brush</div>
+            <label class="control-row">Brush Size <input id="brushSize" type="range" min="8" max="72" value="28" /><span id="brushValue">28px</span></label>
+            <label class="control-row">Overlay Opacity <input id="opacity" type="range" min="15" max="80" value="42" /><span id="opacityValue">42%</span></label>
+          </div>
+
+          <div class="save-row">
+            <button id="saveButton" class="primary-button" type="button" disabled>Build Floor Placement Surface</button>
+          </div>
+
+          <div class="note">
+            Internal MVP only: verify the detected floor, correct the mask, then build a free placement surface.
+          </div>
+
+          <div id="spatialSummary" class="spatial-summary"></div>
+        </div>
+      </aside>
+    </main>
+
+    <script>
+      const storageKey = "furni-space-analysis-mvp.v1";
+      const state = {
+        images: [],
+        selectedId: null,
+        tool: "select",
+        label: "floor",
+        brushSize: 28,
+        opacity: 0.42,
+        zoom: 1,
+        analysisTimer: null,
+        analysisTimeout: null,
+        activeAnalysisController: null,
+        activeAnalysisJobId: null,
+        layers: {
+          original: true,
+          depth: true,
+          segmentation: true,
+          mask: true,
+          floor: true,
+          wall: true,
+        },
+      };
+
+      const fileInput = document.getElementById("fileInput");
+      const uploadButton = document.getElementById("uploadButton");
+      const imageList = document.getElementById("imageList");
+      const canvasWrap = document.getElementById("canvasWrap");
+      const analyzeButton = document.getElementById("analyzeButton");
+      const saveButton = document.getElementById("saveButton");
+      const statusText = document.getElementById("statusText");
+      const activeTitle = document.getElementById("activeTitle");
+      const activeMeta = document.getElementById("activeMeta");
+      const brushSize = document.getElementById("brushSize");
+      const brushValue = document.getElementById("brushValue");
+      const opacity = document.getElementById("opacity");
+      const opacityValue = document.getElementById("opacityValue");
+      const zoomText = document.getElementById("zoomText");
+      const spatialSummaryPanel = document.getElementById("spatialSummary");
+      const analysisStatusPanel = document.getElementById("analysisStatusPanel");
+      const workflowSteps = {
+        upload: document.getElementById("stepUpload"),
+        analyze: document.getElementById("stepAnalyze"),
+        correct: document.getElementById("stepCorrect"),
+        build: document.getElementById("stepBuild"),
+        anchor: document.getElementById("stepAnchor"),
+      };
+
+      function selectedImage() {
+        return state.images.find((image) => image.id === state.selectedId) || null;
+      }
+
+      function statusClass(status) {
+        if (status === "Analyzing") return "status-analyzing";
+        if (status === "Completed") return "status-completed";
+        if (status === "Corrected") return "status-edited";
+        if (status === "Finalized") return "status-finalized";
+        if (status === "Failed") return "status-failed";
+        return "status-not";
+      }
+
+      function formatElapsed(ms) {
+        if (!ms || ms < 0) return "-";
+        const seconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const rest = seconds % 60;
+        return minutes ? `${minutes}m ${String(rest).padStart(2, "0")}s` : `${rest}s`;
+      }
+
+      function analysisProgress(image) {
+        if (!image) return 0;
+        if (image.status === "Finalized" || image.status === "Completed" || image.status === "Corrected") return 100;
+        if (image.status === "Failed") return 100;
+        if (image.status !== "Analyzing") return 0;
+        const elapsed = Date.now() - (image.analysisStartedAt ?? Date.now());
+        return Math.max(8, Math.min(92, Math.round((elapsed / 90000) * 100)));
+      }
+
+      function analysisStatusLabel(image) {
+        if (!image) return "No image selected";
+        if (image.status === "Analyzing") {
+          const elapsed = Date.now() - (image.analysisStartedAt ?? Date.now());
+          if (elapsed < 10000) return "Preparing Replicate request";
+          if (elapsed < 60000) return image.analysisJobId ? `Polling analysis job ${image.analysisJobId.slice(0, 8)}` : "Replicate is processing SAM2 + Depth";
+          if (elapsed < 180000) return "Still processing, likely queue or cold start";
+          if (elapsed < 300000) return "Long Replicate run, still waiting";
+          return "Taking too long. You can cancel and retry.";
+        }
+        if (image.status === "Completed") return "Analysis completed. Review floor mask.";
+        if (image.status === "Corrected") return "Mask corrected. Ready to build placement surface.";
+        if (image.status === "Finalized") return "Placement surface ready.";
+        if (image.status === "Failed") return "Analysis failed.";
+        return "Not analyzed.";
+      }
+
+      function renderAnalysisStatus(image) {
+        if (!analysisStatusPanel) return;
+        const progress = analysisProgress(image);
+        const startedAt = image?.analysisStartedAt ?? null;
+        const endedAt = image?.analysisEndedAt ?? null;
+        const elapsed = startedAt ? (endedAt ?? Date.now()) - startedAt : 0;
+        const expected = image?.status === "Analyzing" ? "Typical 20-60s, cold start can take 2-5m" : "SAM2 + Depth Anything via Replicate";
+        const errorRow =
+          image?.status === "Failed"
+            ? `<div class="analysis-status-row"><span>Error</span><strong>${image.analysisError ?? "Unknown error"}</strong></div>`
+            : "";
+        analysisStatusPanel.className = `analysis-status is-${(image?.status ?? "idle").toLowerCase().replaceAll(" ", "-")}`;
+        analysisStatusPanel.style.setProperty("--progress", `${progress}%`);
+        analysisStatusPanel.innerHTML = `
+          <div class="analysis-status-row"><span>Status</span><strong>${analysisStatusLabel(image)}</strong></div>
+          <div class="analysis-progress"><div class="analysis-progress-bar"></div></div>
+          <div class="analysis-status-row"><span>Elapsed</span><strong>${formatElapsed(elapsed)}</strong></div>
+          <div class="analysis-status-row"><span>Expected</span><strong>${expected}</strong></div>
+          ${errorRow}
+        `;
+      }
+
+      function startAnalysisTimer() {
+        if (state.analysisTimer) return;
+        state.analysisTimer = window.setInterval(() => {
+          const image = selectedImage();
+          if (!image || image.status !== "Analyzing") {
+            stopAnalysisTimer();
+            renderAnalysisStatus(image);
+            return;
+          }
+          renderAnalysisStatus(image);
+          const elapsed = Date.now() - (image.analysisStartedAt ?? Date.now());
+          statusText.textContent = `${analysisStatusLabel(image)} · ${formatElapsed(elapsed)}`;
+        }, 1000);
+      }
+
+      function stopAnalysisTimer() {
+        if (!state.analysisTimer) return;
+        window.clearInterval(state.analysisTimer);
+        state.analysisTimer = null;
+      }
+
+      function stopAnalysisTimeout() {
+        if (!state.analysisTimeout) return;
+        window.clearTimeout(state.analysisTimeout);
+        state.analysisTimeout = null;
+      }
+
+      function failAnalysis(image, message) {
+        if (!image) return;
+        image.status = "Failed";
+        image.analysisEndedAt = Date.now();
+        image.analysisError = message;
+        stopAnalysisTimer();
+        stopAnalysisTimeout();
+        state.activeAnalysisController = null;
+        state.activeAnalysisJobId = null;
+        statusText.textContent = message;
+        render();
+      }
+
+      function readSavedResults() {
+        try {
+          return JSON.parse(localStorage.getItem(storageKey) || "{}");
+        } catch {
+          return {};
+        }
+      }
+
+      function percent(value) {
+        return `${Math.round(value * 100)}%`;
+      }
+
+      function boundsToObject(bounds, width, height, offset = { x: 0, y: 0 }) {
+        if (!bounds || bounds.count === 0) return null;
+        return {
+          x: Number(((bounds.minX - offset.x) / width).toFixed(3)),
+          y: Number(((bounds.minY - offset.y) / height).toFixed(3)),
+          width: Number(((bounds.maxX - bounds.minX + 1) / width).toFixed(3)),
+          height: Number(((bounds.maxY - bounds.minY + 1) / height).toFixed(3)),
+        };
+      }
+
+      function emptyStats() {
+        return {
+          count: 0,
+          minX: Infinity,
+          minY: Infinity,
+          maxX: -Infinity,
+          maxY: -Infinity,
+          depthTotal: 0,
+          depthMin: 1,
+          depthMax: 0,
+        };
+      }
+
+      function addPixel(stats, x, y, depth) {
+        stats.count += 1;
+        stats.minX = Math.min(stats.minX, x);
+        stats.minY = Math.min(stats.minY, y);
+        stats.maxX = Math.max(stats.maxX, x);
+        stats.maxY = Math.max(stats.maxY, y);
+        stats.depthTotal += depth;
+        stats.depthMin = Math.min(stats.depthMin, depth);
+        stats.depthMax = Math.max(stats.depthMax, depth);
+      }
+
+      function summarizeStats(stats, width, height, offset = { x: 0, y: 0 }) {
+        if (!stats.count) {
+          return {
+            coverage: 0,
+            bounds: null,
+            depthMean: null,
+            depthRange: null,
+          };
+        }
+
+        return {
+          coverage: Number((stats.count / (width * height)).toFixed(4)),
+          bounds: boundsToObject(stats, width, height, offset),
+          depthMean: Number((stats.depthTotal / stats.count).toFixed(3)),
+          depthRange: [Number(stats.depthMin.toFixed(3)), Number(stats.depthMax.toFixed(3))],
+        };
+      }
+
+      function classifyMaskPixel(r, g, b, alpha) {
+        if (alpha < 18) return null;
+        const floorScore = b + g * 0.75 - r * 1.2;
+        const wallScore = r + b * 0.65 - g * 1.1;
+        if (wallScore > 115 && b > 100 && r > 95) return "wall";
+        if (floorScore > 130 && b > 120) return "floor";
+        return null;
+      }
+
+      function getImageBounds() {
+        const image = document.getElementById("mainImage");
+        const canvas = document.getElementById("maskCanvas");
+        if (!image || !canvas || !image.naturalWidth || !image.naturalHeight) {
+          return {
+            x: 0,
+            y: 0,
+            width: canvas?.width ?? 1200,
+            height: canvas?.height ?? 750,
+          };
+        }
+
+        const imageRatio = image.naturalWidth / image.naturalHeight;
+        const canvasRatio = canvas.width / canvas.height;
+        let width = canvas.width;
+        let height = canvas.height;
+        let x = 0;
+        let y = 0;
+
+        if (imageRatio > canvasRatio) {
+          height = width / imageRatio;
+          y = (canvas.height - height) / 2;
+        } else {
+          width = height * imageRatio;
+          x = (canvas.width - width) / 2;
+        }
+
+        return { x, y, width, height };
+      }
+
+      function canvasToImagePoint(x, y) {
+        const bounds = getImageBounds();
+        return {
+          x: (x - bounds.x) / bounds.width,
+          y: (y - bounds.y) / bounds.height,
+          bounds,
+        };
+      }
+
+      function imageToCanvasPoint(point, bounds = getImageBounds()) {
+        return {
+          x: bounds.x + point.x * bounds.width,
+          y: bounds.y + point.y * bounds.height,
+        };
+      }
+
+      function computeSpatialStructure() {
+        const maskCanvas = document.getElementById("maskCanvas");
+        const depthCanvas = document.getElementById("depthCanvas");
+        if (!maskCanvas || !depthCanvas) {
+          return {
+            confidence: 0,
+            floorPlane: null,
+            wallRegions: [],
+            warnings: ["analysis canvas is not available"],
+          };
+        }
+
+        const width = maskCanvas.width;
+        const height = maskCanvas.height;
+        const maskData = maskCanvas.getContext("2d").getImageData(0, 0, width, height).data;
+        const depthData = depthCanvas.getContext("2d").getImageData(0, 0, width, height).data;
+        const floor = emptyStats();
+        const wall = emptyStats();
+        const leftWall = emptyStats();
+        const rightWall = emptyStats();
+
+        const imageBounds = getImageBounds();
+        const minX = Math.max(0, Math.floor(imageBounds.x));
+        const maxX = Math.min(width, Math.ceil(imageBounds.x + imageBounds.width));
+        const minY = Math.max(0, Math.floor(imageBounds.y));
+        const maxY = Math.min(height, Math.ceil(imageBounds.y + imageBounds.height));
+
+        for (let y = minY; y < maxY; y += 3) {
+          for (let x = minX; x < maxX; x += 3) {
+            const index = (y * width + x) * 4;
+            const label = classifyMaskPixel(maskData[index], maskData[index + 1], maskData[index + 2], maskData[index + 3]);
+            if (!label) continue;
+
+            const depth = (depthData[index] + depthData[index + 1] + depthData[index + 2]) / (255 * 3);
+            if (label === "floor") addPixel(floor, x, y, depth);
+            else {
+              addPixel(wall, x, y, depth);
+              addPixel(x < width / 2 ? leftWall : rightWall, x, y, depth);
+            }
+          }
+        }
+
+        const floorSummary = summarizeStats(floor, imageBounds.width, imageBounds.height, imageBounds);
+        const wallSummary = summarizeStats(wall, imageBounds.width, imageBounds.height, imageBounds);
+        const wallRegions = [
+          { label: "left-wall", ...summarizeStats(leftWall, imageBounds.width, imageBounds.height, imageBounds) },
+          { label: "right-wall", ...summarizeStats(rightWall, imageBounds.width, imageBounds.height, imageBounds) },
+        ].filter((region) => region.coverage > 0.01);
+
+        const horizonY = floor.count ? (floor.minY - imageBounds.y) / imageBounds.height : null;
+        const imageHorizonY = horizonY ?? 0.5;
+        const pitchDeg = Number(((0.5 - imageHorizonY) * 58).toFixed(1));
+        const floorDepthNear = floorSummary.depthRange?.[0] ?? 0.25;
+        const floorDepthFar = floorSummary.depthRange?.[1] ?? 0.85;
+        const floorWidthMeters = floorSummary.bounds ? Number((2.4 + floorSummary.bounds.width * 3.2).toFixed(2)) : 4.2;
+        const floorDepthMeters = floorSummary.bounds ? Number((2.8 + floorSummary.bounds.height * 4.4).toFixed(2)) : 5.2;
+        const confidence = Math.min(
+          0.96,
+          0.28 +
+            Math.min(floorSummary.coverage * 4.2, 0.34) +
+            Math.min(wallSummary.coverage * 2.8, 0.24) +
+            (wallRegions.length >= 2 ? 0.1 : 0),
+        );
+
+        return {
+          confidence: Number(confidence.toFixed(2)),
+          floorPlane: floor.count
+            ? {
+                imageHorizonY: Number(horizonY.toFixed(3)),
+                imageBottomY: Number(((floor.maxY - imageBounds.y) / imageBounds.height).toFixed(3)),
+                depthMean: floorSummary.depthMean,
+                depthRange: floorSummary.depthRange,
+                coverage: floorSummary.coverage,
+                bounds: floorSummary.bounds,
+                imageBounds: {
+                  x: Number((imageBounds.x / width).toFixed(3)),
+                  y: Number((imageBounds.y / height).toFixed(3)),
+                  width: Number((imageBounds.width / width).toFixed(3)),
+                  height: Number((imageBounds.height / height).toFixed(3)),
+                },
+                vanishingPoint: {
+                  x: 0.5,
+                  y: Number(Math.max(0.05, horizonY - 0.12).toFixed(3)),
+                },
+                world: {
+                  origin: [0, 0, 0],
+                  normal: [0, 1, 0],
+                  widthMeters: floorWidthMeters,
+                  depthMeters: floorDepthMeters,
+                  depthNear: floorDepthNear,
+                  depthFar: floorDepthFar,
+                },
+              }
+            : null,
+          wallRegions,
+          cameraCalibration: {
+            fovDeg: 52,
+            pitchDeg,
+            yawDeg: 0,
+            rollDeg: 0,
+            cameraHeightMeters: 1.55,
+            horizonY: Number(imageHorizonY.toFixed(3)),
+            vanishingPoint: {
+              x: 0.5,
+              y: Number(Math.max(0.05, imageHorizonY - 0.12).toFixed(3)),
+            },
+          },
+          placementSpace: floor.count
+            ? {
+                coordinateSystem: "image-floor-plane-v1",
+                unit: "meters",
+                mode: "free-placement-on-detected-floor",
+                editableArea: "corrected-floor-mask",
+                supportsDragWithinFloor: true,
+                floorPolygonImage: floorSummary.bounds
+                  ? [
+                      [floorSummary.bounds.x, floorSummary.bounds.y],
+                      [Number((floorSummary.bounds.x + floorSummary.bounds.width).toFixed(3)), floorSummary.bounds.y],
+                      [
+                        Number((floorSummary.bounds.x + floorSummary.bounds.width * 0.86).toFixed(3)),
+                        Number((floorSummary.bounds.y + floorSummary.bounds.height).toFixed(3)),
+                      ],
+                      [
+                        Number((floorSummary.bounds.x + floorSummary.bounds.width * 0.14).toFixed(3)),
+                        Number((floorSummary.bounds.y + floorSummary.bounds.height).toFixed(3)),
+                      ],
+                    ]
+                  : [],
+                surfaceBoundsImage: floorSummary.bounds,
+              }
+            : null,
+          maskCoverage: {
+            floor: floorSummary.coverage,
+            wall: wallSummary.coverage,
+          },
+          warnings: [
+            floorSummary.coverage < 0.03 ? "floor mask coverage is low" : null,
+            wallSummary.coverage < 0.03 ? "wall mask coverage is low" : null,
+          ].filter(Boolean),
+        };
+      }
+
+      function buildSpatialSummary(image) {
+        const structure = computeSpatialStructure();
+        return {
+          source: image.maskDataUrl ? "corrected-mask" : "ai-mask",
+          builtAt: new Date().toISOString(),
+          structure,
+          layers: { ...state.layers },
+          labels: {
+            floor: "user-corrected floor mask",
+            wall: "user-corrected wall mask",
+          },
+          models: image.analysis?.models ?? null,
+        };
+      }
+
+      function writeFinalizedResult(image, spatialSummary) {
+        const saved = readSavedResults();
+        saved[image.id] = {
+          name: image.name,
+          status: image.status,
+          builtAt: spatialSummary.builtAt,
+          correctedMaskDataUrl: image.maskDataUrl,
+          spatialSummary,
+          analysis: image.analysis,
+        };
+        localStorage.setItem(storageKey, JSON.stringify(saved));
+      }
+
+      function renderSpatialSummary(summary) {
+        if (!spatialSummaryPanel) return;
+        if (!summary?.structure) {
+          spatialSummaryPanel.innerHTML = "";
+          return;
+        }
+
+        const structure = summary.structure;
+        spatialSummaryPanel.innerHTML = `
+          <div class="section-title">Placement Space</div>
+          <div class="summary-grid">
+            <div class="summary-card"><span>Confidence</span><strong>${percent(structure.confidence)}</strong></div>
+            <div class="summary-card"><span>Camera pitch</span><strong>${structure.cameraCalibration?.pitchDeg ?? "n/a"}°</strong></div>
+            <div class="summary-card"><span>Floor plane</span><strong>${structure.floorPlane?.world?.widthMeters ?? "n/a"}m × ${structure.floorPlane?.world?.depthMeters ?? "n/a"}m</strong></div>
+            <div class="summary-card"><span>Placement mode</span><strong>${structure.placementSpace ? "Free floor area" : "n/a"}</strong></div>
+          </div>
+        `;
+      }
+
+      function setToolControlsEnabled(enabled) {
+        document.querySelectorAll("[data-tool], [data-label]").forEach((button) => {
+          button.disabled = !enabled;
+        });
+        brushSize.disabled = !enabled;
+        opacity.disabled = !enabled;
+      }
+
+      function activateTool(tool) {
+        state.tool = tool;
+        document.querySelectorAll("[data-tool]").forEach((item) => {
+          item.classList.toggle("active", item.dataset.tool === tool);
+        });
+        updateLayerVisibility();
+      }
+
+      function setWorkflowState(image) {
+        const states = {
+          upload: image ? "done" : "active",
+          analyze: !image ? "" : image.analyzed ? "done" : "active",
+          correct: !image?.analyzed ? "" : image.status === "Corrected" || image.status === "Finalized" ? "done" : "active",
+          build: image?.status === "Finalized" ? "done" : image?.status === "Corrected" ? "active" : "",
+          anchor: image?.status === "Finalized" ? "active" : "",
+        };
+
+        for (const [key, element] of Object.entries(workflowSteps)) {
+          element.className = `flow-step ${states[key]}`.trim();
+        }
+      }
+
+      function renderImageList() {
+        if (!state.images.length) {
+          imageList.innerHTML = '<div class="empty-list">Upload interior images to inspect AI spatial understanding.</div>';
+          return;
+        }
+
+        imageList.innerHTML = "";
+        for (const image of state.images) {
+          const button = document.createElement("button");
+          button.className = `image-card${image.id === state.selectedId ? " selected" : ""}`;
+          button.type = "button";
+          button.innerHTML = `
+            <img class="thumb" src="${image.url}" alt="" />
+            <span class="card-meta">
+              <span class="file-name">${image.name}</span>
+              <span class="status-chip ${statusClass(image.status)}">${image.status}</span>
+            </span>
+          `;
+          button.addEventListener("click", () => {
+            state.selectedId = image.id;
+            state.zoom = 1;
+            render();
+          });
+          imageList.appendChild(button);
+        }
+      }
+
+      function buildCanvas(image) {
+        canvasWrap.className = "canvas-wrap";
+        canvasWrap.innerHTML = `
+          <img id="mainImage" class="main-image" src="${image.url}" alt="" />
+          <canvas id="depthCanvas" class="overlay-canvas"></canvas>
+          <canvas id="segCanvas" class="overlay-canvas"></canvas>
+          <canvas id="maskCanvas" class="edit-canvas"></canvas>
+          <canvas id="floorCanvas" class="overlay-canvas"></canvas>
+          <canvas id="wallCanvas" class="overlay-canvas"></canvas>
+          <canvas id="anchorCanvas" class="overlay-canvas anchor-canvas"></canvas>
+          <div class="legend">
+            <span class="legend-row"><span class="swatch depth"></span>Depth</span>
+            <span class="legend-row"><span class="swatch segment"></span>Segments</span>
+            <span class="legend-row"><span class="swatch floor"></span>Floor</span>
+            <span class="legend-row"><span class="swatch wall"></span>Wall</span>
+          </div>
+        `;
+
+        const depthCanvas = document.getElementById("depthCanvas");
+        const segCanvas = document.getElementById("segCanvas");
+        const maskCanvas = document.getElementById("maskCanvas");
+        const floorCanvas = document.getElementById("floorCanvas");
+        const wallCanvas = document.getElementById("wallCanvas");
+        const anchorCanvas = document.getElementById("anchorCanvas");
+        for (const canvas of [depthCanvas, segCanvas, maskCanvas, floorCanvas, wallCanvas, anchorCanvas]) {
+          canvas.width = 1200;
+          canvas.height = 750;
+        }
+
+        if (image.analyzed) drawAnalysis(image);
+        if (image.maskDataUrl) restoreMask(image);
+        bindPainting(maskCanvas, image);
+        bindPlacementSurface(anchorCanvas, image);
+        drawPlacementSurface(image);
+        updateLayerVisibility();
+      }
+
+      function drawAnalysis(image) {
+        const depthCanvas = document.getElementById("depthCanvas");
+        const segCanvas = document.getElementById("segCanvas");
+        const maskCanvas = document.getElementById("maskCanvas");
+        if (!depthCanvas || !segCanvas || !maskCanvas) return;
+
+        const depth = depthCanvas.getContext("2d");
+        const seg = segCanvas.getContext("2d");
+        const mask = maskCanvas.getContext("2d");
+        const depthOverlayUrl = image.analysis?.proxiedDepthMapUrl || image.analysis?.depthMapUrl;
+        const segmentationOverlayUrl = image.analysis?.proxiedMaskUrl || image.analysis?.maskUrl;
+
+        depth.clearRect(0, 0, depthCanvas.width, depthCanvas.height);
+        if (depthOverlayUrl) {
+          drawRemoteImage(depthCanvas, depthOverlayUrl, 0.5);
+        } else {
+          const gradient = depth.createLinearGradient(0, 0, 0, depthCanvas.height);
+          gradient.addColorStop(0, "rgba(132, 89, 255, 0.22)");
+          gradient.addColorStop(0.48, "rgba(64, 140, 255, 0.14)");
+          gradient.addColorStop(1, "rgba(255, 108, 84, 0.22)");
+          depth.fillStyle = gradient;
+          depth.fillRect(0, 0, depthCanvas.width, depthCanvas.height);
+        }
+
+        seg.clearRect(0, 0, segCanvas.width, segCanvas.height);
+        if (segmentationOverlayUrl) {
+          drawRemoteImage(segCanvas, segmentationOverlayUrl, 0.56);
+        } else {
+          seg.strokeStyle = "rgba(234, 241, 255, 0.54)";
+          seg.lineWidth = 2;
+          drawPolygon(seg, [
+            [0.08, 0.12],
+            [0.49, 0.2],
+            [0.48, 0.58],
+            [0.08, 0.75],
+          ]);
+          drawPolygon(seg, [
+            [0.52, 0.19],
+            [0.92, 0.1],
+            [0.93, 0.74],
+            [0.52, 0.58],
+          ]);
+          drawPolygon(seg, [
+            [0.05, 0.62],
+            [0.95, 0.62],
+            [0.84, 0.95],
+            [0.16, 0.95],
+          ]);
+        }
+
+        mask.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+        seedFloorAndWallCandidates(maskCanvas);
+        image.maskDataUrl = maskCanvas.toDataURL("image/png");
+        syncMaskDisplayLayers();
+      }
+
+      function seedFloorAndWallCandidates(canvas) {
+        const context = canvas.getContext("2d");
+        const bounds = getImageBounds();
+        const point = (x, y) => [(bounds.x + bounds.width * x) / canvas.width, (bounds.y + bounds.height * y) / canvas.height];
+        context.save();
+        context.globalCompositeOperation = "source-over";
+
+        context.fillStyle = "rgba(177, 118, 255, 0.46)";
+        drawFilledPolygon(context, [
+          point(0.02, 0.1),
+          point(0.48, 0.17),
+          point(0.48, 0.58),
+          point(0.03, 0.78),
+        ]);
+        drawFilledPolygon(context, [
+          point(0.52, 0.17),
+          point(0.98, 0.1),
+          point(0.97, 0.78),
+          point(0.52, 0.58),
+        ]);
+
+        context.fillStyle = "rgba(37, 185, 255, 0.58)";
+        drawFilledPolygon(context, [
+          point(0.07, 0.61),
+          point(0.93, 0.61),
+          point(0.84, 0.96),
+          point(0.16, 0.96),
+        ]);
+        context.restore();
+      }
+
+      async function drawRemoteImage(canvas, url, alpha) {
+        try {
+          const image = await loadImageElement(url);
+          const context = canvas.getContext("2d");
+          const bounds = getImageBounds();
+          context.save();
+          context.globalAlpha = alpha;
+          context.globalCompositeOperation = "source-over";
+          context.drawImage(image, bounds.x, bounds.y, bounds.width, bounds.height);
+          context.restore();
+          const selected = selectedImage();
+          if (canvas.id === "maskCanvas" && selected) {
+            selected.maskDataUrl = canvas.toDataURL("image/png");
+            syncMaskDisplayLayers();
+          }
+          updateLayerVisibility();
+        } catch {
+          statusText.textContent = "Analysis completed, but one overlay image could not be drawn";
+        }
+      }
+
+      function drawPolygon(context, points) {
+        context.beginPath();
+        points.forEach(([x, y], index) => {
+          const px = x * context.canvas.width;
+          const py = y * context.canvas.height;
+          if (index === 0) context.moveTo(px, py);
+          else context.lineTo(px, py);
+        });
+        context.closePath();
+        context.stroke();
+      }
+
+      function drawFilledPolygon(context, points) {
+        context.beginPath();
+        points.forEach(([x, y], index) => {
+          const px = x * context.canvas.width;
+          const py = y * context.canvas.height;
+          if (index === 0) context.moveTo(px, py);
+          else context.lineTo(px, py);
+        });
+        context.closePath();
+        context.fill();
+      }
+
+      function syncMaskDisplayLayers() {
+        const maskCanvas = document.getElementById("maskCanvas");
+        const floorCanvas = document.getElementById("floorCanvas");
+        const wallCanvas = document.getElementById("wallCanvas");
+        if (!maskCanvas || !floorCanvas || !wallCanvas) return;
+
+        const width = maskCanvas.width;
+        const height = maskCanvas.height;
+        const source = maskCanvas.getContext("2d").getImageData(0, 0, width, height);
+        const floorImage = new ImageData(width, height);
+        const wallImage = new ImageData(width, height);
+
+        for (let index = 0; index < source.data.length; index += 4) {
+          const r = source.data[index];
+          const g = source.data[index + 1];
+          const b = source.data[index + 2];
+          const a = source.data[index + 3];
+          const label = classifyMaskPixel(r, g, b, a);
+          if (label === "floor") {
+            floorImage.data[index] = 37;
+            floorImage.data[index + 1] = 185;
+            floorImage.data[index + 2] = 255;
+            floorImage.data[index + 3] = Math.min(180, Math.max(a, 110));
+          } else if (label === "wall") {
+            wallImage.data[index] = 177;
+            wallImage.data[index + 1] = 118;
+            wallImage.data[index + 2] = 255;
+            wallImage.data[index + 3] = Math.min(170, Math.max(a, 100));
+          }
+        }
+
+        floorCanvas.getContext("2d").putImageData(floorImage, 0, 0);
+        wallCanvas.getContext("2d").putImageData(wallImage, 0, 0);
+      }
+
+      function restoreMask(image) {
+        const maskCanvas = document.getElementById("maskCanvas");
+        if (!maskCanvas || !image.maskDataUrl) return;
+        const context = maskCanvas.getContext("2d");
+        const restored = new Image();
+        restored.onload = () => {
+          context.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+          context.drawImage(restored, 0, 0, maskCanvas.width, maskCanvas.height);
+          syncMaskDisplayLayers();
+          updateLayerVisibility();
+        };
+        restored.src = image.maskDataUrl;
+      }
+
+      function bindPainting(canvas, image) {
+        let painting = false;
+        const paint = (event) => {
+          if (!painting || state.tool === "select") return;
+          const rect = canvas.getBoundingClientRect();
+          const rawX = ((event.clientX - rect.left) / rect.width) * canvas.width;
+          const rawY = ((event.clientY - rect.top) / rect.height) * canvas.height;
+          const imagePoint = canvasToImagePoint(rawX, rawY);
+          if (imagePoint.x < 0 || imagePoint.x > 1 || imagePoint.y < 0 || imagePoint.y > 1) return;
+          const x = rawX;
+          const y = rawY;
+          const context = canvas.getContext("2d");
+          context.lineCap = "round";
+          context.lineJoin = "round";
+          context.lineWidth = state.brushSize;
+          if (state.tool === "erase") {
+            context.globalCompositeOperation = "destination-out";
+            context.strokeStyle = "rgba(0,0,0,1)";
+          } else {
+            context.globalCompositeOperation = "source-over";
+            context.strokeStyle =
+              state.label === "wall" ? "rgba(177, 118, 255, 0.58)" : "rgba(37, 185, 255, 0.62)";
+          }
+          context.lineTo(x, y);
+          context.stroke();
+          image.maskDataUrl = canvas.toDataURL("image/png");
+          syncMaskDisplayLayers();
+          image.status = "Corrected";
+          renderImageList();
+          setWorkflowState(image);
+          activeMeta.textContent = "Corrected · ready to finalize";
+          saveButton.disabled = false;
+        };
+
+        canvas.addEventListener("pointerdown", (event) => {
+          if (state.tool === "select") return;
+          painting = true;
+          const context = canvas.getContext("2d");
+          context.beginPath();
+          const rect = canvas.getBoundingClientRect();
+          const rawX = ((event.clientX - rect.left) / rect.width) * canvas.width;
+          const rawY = ((event.clientY - rect.top) / rect.height) * canvas.height;
+          const imagePoint = canvasToImagePoint(rawX, rawY);
+          if (imagePoint.x < 0 || imagePoint.x > 1 || imagePoint.y < 0 || imagePoint.y > 1) return;
+          context.moveTo(rawX, rawY);
+          paint(event);
+        });
+        canvas.addEventListener("pointermove", paint);
+        window.addEventListener("pointerup", () => {
+          painting = false;
+        });
+      }
+
+      function pointInsideBounds(point, bounds) {
+        if (!bounds) return false;
+        return (
+          point.x >= bounds.x &&
+          point.x <= bounds.x + bounds.width &&
+          point.y >= bounds.y &&
+          point.y <= bounds.y + bounds.height
+        );
+      }
+
+      function imagePointToWorld(point, summary) {
+        const floorPlane = summary?.structure?.floorPlane;
+        const bounds = floorPlane?.bounds;
+        const world = floorPlane?.world;
+        if (!bounds || !world) return null;
+
+        const xNorm = (point.x - bounds.x) / bounds.width;
+        const yNorm = (point.y - bounds.y) / bounds.height;
+        const xMeters = (xNorm - 0.5) * world.widthMeters;
+        const zMeters = -Math.max(0, Math.min(1, yNorm)) * world.depthMeters;
+        const depth = world.depthNear + Math.max(0, Math.min(1, yNorm)) * (world.depthFar - world.depthNear);
+
+        return {
+          x: Number(xMeters.toFixed(3)),
+          y: 0,
+          z: Number(zMeters.toFixed(3)),
+          estimatedDepth: Number(depth.toFixed(3)),
+        };
+      }
+
+      function drawPlacementSurface(image) {
+        const canvas = document.getElementById("anchorCanvas");
+        if (!canvas) return;
+        const context = canvas.getContext("2d");
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        const surface = image.spatialSummary?.structure?.placementSpace;
+        const polygon = surface?.floorPolygonImage ?? [];
+        if (image.status !== "Finalized" || polygon.length < 3) return;
+
+        context.save();
+        context.fillStyle = "rgba(83, 214, 255, 0.18)";
+        context.strokeStyle = "#53d6ff";
+        context.lineWidth = 4;
+        context.setLineDash([12, 8]);
+        context.beginPath();
+        polygon.forEach(([x, y], index) => {
+          const point = imageToCanvasPoint({ x, y });
+          if (index === 0) context.moveTo(point.x, point.y);
+          else context.lineTo(point.x, point.y);
+        });
+        context.closePath();
+        context.fill();
+        context.stroke();
+        context.restore();
+      }
+
+      function bindPlacementSurface(canvas, image) {
+        canvas.addEventListener("click", (event) => {
+          if (image.status !== "Finalized" || state.tool !== "select") return;
+          const summary = image.spatialSummary;
+          const bounds = summary?.structure?.floorPlane?.bounds;
+          const rect = canvas.getBoundingClientRect();
+          const rawX = ((event.clientX - rect.left) / rect.width) * canvas.width;
+          const rawY = ((event.clientY - rect.top) / rect.height) * canvas.height;
+          const imagePoint = canvasToImagePoint(rawX, rawY);
+          const point = {
+            x: Number(imagePoint.x.toFixed(3)),
+            y: Number(imagePoint.y.toFixed(3)),
+          };
+
+          if (point.x < 0 || point.x > 1 || point.y < 0 || point.y > 1 || !pointInsideBounds(point, bounds)) {
+            statusText.textContent = "This point is outside the detected floor placement area";
+            return;
+          }
+
+          const world = imagePointToWorld(point, summary);
+          if (!world) return;
+          statusText.textContent = `Inside placement surface · movable position x ${world.x}m, z ${world.z}m`;
+        });
+      }
+
+      function updateLayerVisibility() {
+        const mainImage = document.getElementById("mainImage");
+        const depthCanvas = document.getElementById("depthCanvas");
+        const segCanvas = document.getElementById("segCanvas");
+        const maskCanvas = document.getElementById("maskCanvas");
+        const floorCanvas = document.getElementById("floorCanvas");
+        const wallCanvas = document.getElementById("wallCanvas");
+        const anchorCanvas = document.getElementById("anchorCanvas");
+        const maskChildLayers = document.getElementById("maskChildLayers");
+        if (maskChildLayers) {
+          maskChildLayers.classList.toggle("is-disabled", !state.layers.mask);
+          maskChildLayers.querySelectorAll("input").forEach((input) => {
+            input.disabled = !state.layers.mask;
+          });
+        }
+        if (mainImage) mainImage.style.opacity = state.layers.original ? "1" : "0";
+        if (depthCanvas) depthCanvas.style.display = state.layers.depth ? "block" : "none";
+        if (segCanvas) segCanvas.style.display = state.layers.segmentation ? "block" : "none";
+        if (maskCanvas) {
+          maskCanvas.style.display = state.tool !== "select" ? "block" : "none";
+          maskCanvas.style.opacity = "0";
+          maskCanvas.classList.toggle("painting", state.tool !== "select");
+        }
+        if (floorCanvas) {
+          floorCanvas.style.display = state.layers.mask && state.layers.floor ? "block" : "none";
+          floorCanvas.style.opacity = String(state.opacity);
+        }
+        if (wallCanvas) {
+          wallCanvas.style.display = state.layers.mask && state.layers.wall ? "block" : "none";
+          wallCanvas.style.opacity = String(state.opacity);
+        }
+        if (anchorCanvas) {
+          anchorCanvas.style.display = selectedImage()?.status === "Finalized" ? "block" : "none";
+        }
+      }
+
+      function renderCanvas() {
+        const image = selectedImage();
+        if (!image) {
+          canvasWrap.className = "canvas-wrap empty";
+          canvasWrap.innerHTML = "<div>Upload and select an interior image.</div>";
+          activeTitle.textContent = "No image selected";
+          activeMeta.textContent = "SAM2 + Depth Anything v3 Metric via Replicate";
+          analyzeButton.disabled = true;
+          analyzeButton.textContent = "Analyze Space";
+          saveButton.disabled = true;
+          saveButton.textContent = "Build Floor Placement Surface";
+          setToolControlsEnabled(false);
+          setWorkflowState(null);
+          renderSpatialSummary(null);
+          renderAnalysisStatus(null);
+          return;
+        }
+
+        activeTitle.textContent = image.name;
+        activeMeta.textContent = `${image.status} · ${
+          image.status === "Analyzing"
+            ? analysisStatusLabel(image)
+            : image.status === "Failed"
+              ? image.analysisError || "Analysis failed. Retry available."
+              : image.status === "Finalized"
+            ? "Placement surface built · furniture can move within the floor area"
+            : image.analyzed
+              ? "Review detected floor mask before building placement space"
+              : "Awaiting analysis"
+        }`;
+        analyzeButton.disabled = false;
+        analyzeButton.textContent =
+          image.status === "Analyzing"
+            ? "Cancel Analysis"
+            : image.analyzed || image.status === "Failed"
+              ? "Re-run Analysis"
+              : "Analyze Space";
+        saveButton.disabled = !["Completed", "Corrected"].includes(image.status);
+        saveButton.textContent = image.status === "Finalized" ? "Placement Surface Ready" : "Build Floor Placement Surface";
+        setToolControlsEnabled(Boolean(image.analyzed) && image.status !== "Analyzing");
+        setWorkflowState(image);
+        buildCanvas(image);
+        renderSpatialSummary(image.spatialSummary);
+        renderAnalysisStatus(image);
+      }
+
+      function render() {
+        renderImageList();
+        renderCanvas();
+        updateLayerVisibility();
+        zoomText.textContent = `${Math.round(state.zoom * 100)}%`;
+      }
+
+      uploadButton.addEventListener("click", () => fileInput.click());
+      fileInput.addEventListener("change", async () => {
+        const files = Array.from(fileInput.files || []);
+        statusText.textContent = `Normalizing ${files.length} image${files.length === 1 ? "" : "s"} to 1200×750`;
+
+        try {
+          for (const file of files) {
+            const normalized = await normalizeImageFile(file);
+            const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+            const item = {
+              id,
+              name: file.name,
+              originalName: file.name,
+              url: normalized.dataUrl,
+              dataUrl: normalized.dataUrl,
+              normalized: {
+                width: normalized.width,
+                height: normalized.height,
+                fit: normalized.fit,
+              },
+              status: "Not analyzed",
+              analyzed: false,
+              analysis: null,
+              analysisStartedAt: null,
+              analysisEndedAt: null,
+              analysisError: null,
+              analysisJobId: null,
+              maskDataUrl: null,
+            };
+            state.images.push(item);
+            state.selectedId = id;
+          }
+          statusText.textContent = `${files.length} normalized image${files.length === 1 ? "" : "s"} uploaded`;
+        } catch (error) {
+          statusText.textContent = error.message || "Image normalization failed";
+        }
+
+        fileInput.value = "";
+        render();
+      });
+
+      function readFileAsDataUrl(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error("Image file could not be read."));
+          reader.readAsDataURL(file);
+        });
+      }
+
+      async function normalizeImageFile(file) {
+        const source = await readFileAsDataUrl(file);
+        const image = await loadImageElement(source);
+        const width = 1200;
+        const height = 750;
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d");
+        context.fillStyle = "#0b0d12";
+        context.fillRect(0, 0, width, height);
+
+        const sourceRatio = image.naturalWidth / image.naturalHeight;
+        const targetRatio = width / height;
+        let drawWidth = width;
+        let drawHeight = height;
+        let drawX = 0;
+        let drawY = 0;
+
+        if (sourceRatio > targetRatio) {
+          drawHeight = width / sourceRatio;
+          drawY = (height - drawHeight) / 2;
+        } else {
+          drawWidth = height * sourceRatio;
+          drawX = (width - drawWidth) / 2;
+        }
+
+        context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+        return {
+          dataUrl: canvas.toDataURL("image/png"),
+          width,
+          height,
+          fit: {
+            x: Number((drawX / width).toFixed(4)),
+            y: Number((drawY / height).toFixed(4)),
+            width: Number((drawWidth / width).toFixed(4)),
+            height: Number((drawHeight / height).toFixed(4)),
+            mode: "contain-with-padding",
+          },
+        };
+      }
+
+      function loadImageElement(url) {
+        return new Promise((resolve, reject) => {
+          const image = new Image();
+          image.crossOrigin = "anonymous";
+          image.onload = () => resolve(image);
+          image.onerror = () => reject(new Error("Analysis image could not be loaded."));
+          image.src = url;
+        });
+      }
+
+      analyzeButton.addEventListener("click", async () => {
+        const image = selectedImage();
+        if (!image) return;
+        if (image.status === "Analyzing") {
+          state.activeAnalysisController?.abort();
+          failAnalysis(image, "Analysis canceled. You can retry now.");
+          return;
+        }
+
+        const controller = new AbortController();
+        state.activeAnalysisController = controller;
+        image.status = "Analyzing";
+        image.analysisStartedAt = Date.now();
+        image.analysisEndedAt = null;
+        image.analysisError = null;
+        statusText.textContent = "Preparing Replicate request";
+        render();
+        startAnalysisTimer();
+        stopAnalysisTimeout();
+        state.analysisTimeout = window.setTimeout(() => {
+          if (selectedImage()?.id !== image.id || image.status !== "Analyzing") return;
+          controller.abort();
+          failAnalysis(image, "Analysis timed out after 5 minutes. Replicate may have completed, but the browser request did not return. Retry the analysis.");
+        }, 5 * 60 * 1000);
+
+        try {
+          if (!image.dataUrl) {
+            statusText.textContent = "Preparing uploaded image";
+            await new Promise((resolve) => setTimeout(resolve, 250));
+          }
+          if (!image.dataUrl) throw new Error("Uploaded image is still loading. Try again.");
+
+          const startResponse = await fetch("/api/analyze/start", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ image: image.dataUrl }),
+            signal: controller.signal,
+          });
+          const startedJob = await startResponse.json();
+          if (!startResponse.ok) throw new Error(startedJob.error || "Analysis job could not be started.");
+
+          image.analysisJobId = startedJob.id;
+          state.activeAnalysisJobId = startedJob.id;
+          let result = null;
+          while (image.status === "Analyzing") {
+            await new Promise((resolve) => window.setTimeout(resolve, 2000));
+            if (controller.signal.aborted) throw new DOMException("Analysis canceled.", "AbortError");
+
+            const jobResponse = await fetch(`/api/analyze/jobs/${encodeURIComponent(startedJob.id)}`, {
+              signal: controller.signal,
+            });
+            const job = await jobResponse.json();
+            if (!jobResponse.ok) throw new Error(job.error || "Analysis job could not be checked.");
+            if (job.status === "failed") throw new Error(job.error || "Replicate analysis failed.");
+            if (job.status === "succeeded") {
+              result = job.result;
+              break;
+            }
+            statusText.textContent = `${analysisStatusLabel(image)} · ${formatElapsed(Date.now() - image.analysisStartedAt)}`;
+          }
+          if (!result) throw new Error("Analysis ended without a result.");
+
+          image.analysis = result;
+          image.status = "Completed";
+          image.analyzed = true;
+          image.analysisEndedAt = Date.now();
+          statusText.textContent = "Review the detected floor mask. If it is wrong, paint or erase it before building the placement surface.";
+          stopAnalysisTimer();
+          stopAnalysisTimeout();
+          state.activeAnalysisController = null;
+          state.activeAnalysisJobId = null;
+          render();
+        } catch (error) {
+          const message =
+            error.name === "AbortError"
+              ? image.analysisError || "Analysis request was canceled."
+              : error.message || "Analysis failed";
+          failAnalysis(image, message);
+        }
+      });
+
+      saveButton.addEventListener("click", () => {
+        const image = selectedImage();
+        if (!image || !["Completed", "Corrected"].includes(image.status)) {
+          statusText.textContent = "Run analysis, review the detected floor mask, then build the placement surface";
+          return;
+        }
+        const spatialSummary = buildSpatialSummary(image);
+        image.status = "Finalized";
+        image.spatialSummary = spatialSummary;
+        writeFinalizedResult(image, spatialSummary);
+        activateTool("select");
+        statusText.textContent = "Placement surface ready. Furniture can be freely moved inside the detected floor area.";
+        render();
+      });
+
+      document.querySelectorAll("[data-layer]").forEach((input) => {
+        input.addEventListener("change", () => {
+          state.layers[input.dataset.layer] = input.checked;
+          updateLayerVisibility();
+        });
+      });
+
+      document.querySelectorAll("[data-tool]").forEach((button) => {
+        button.addEventListener("click", () => {
+          activateTool(button.dataset.tool);
+        });
+      });
+
+      document.querySelectorAll("[data-label]").forEach((button) => {
+        button.addEventListener("click", () => {
+          state.label = button.dataset.label;
+          state.tool = "paint";
+          document.querySelectorAll("[data-label]").forEach((item) => item.classList.remove("label-active"));
+          document.querySelectorAll("[data-tool]").forEach((item) => item.classList.remove("active"));
+          button.classList.add("label-active");
+          document.querySelector("[data-tool=paint]").classList.add("active");
+          statusText.textContent = `Paint Mask is active · label: ${state.label}`;
+          updateLayerVisibility();
+        });
+      });
+
+      brushSize.addEventListener("input", () => {
+        state.brushSize = Number(brushSize.value);
+        brushValue.textContent = `${state.brushSize}px`;
+      });
+
+      opacity.addEventListener("input", () => {
+        state.opacity = Number(opacity.value) / 100;
+        opacityValue.textContent = `${opacity.value}%`;
+        updateLayerVisibility();
+      });
+
+      document.getElementById("zoomInButton").addEventListener("click", () => {
+        state.zoom = Math.min(2, state.zoom + 0.1);
+        canvasWrap.style.transform = `scale(${state.zoom})`;
+        zoomText.textContent = `${Math.round(state.zoom * 100)}%`;
+      });
+
+      document.getElementById("zoomOutButton").addEventListener("click", () => {
+        state.zoom = Math.max(0.5, state.zoom - 0.1);
+        canvasWrap.style.transform = `scale(${state.zoom})`;
+        zoomText.textContent = `${Math.round(state.zoom * 100)}%`;
+      });
+
+      document.getElementById("fitButton").addEventListener("click", () => {
+        state.zoom = 1;
+        canvasWrap.style.transform = "scale(1)";
+        zoomText.textContent = "100%";
+      });
+
+      document.getElementById("panButton").addEventListener("click", () => {
+        statusText.textContent = "Canvas pan tool selected";
+      });
+
+      render();
+    </script>
+  </body>
+</html>
